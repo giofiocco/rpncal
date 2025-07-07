@@ -8,20 +8,6 @@ It operates on `double`s, can input operations or numbers.
 - `quit` or `exit` ends the program.
 - `?` or `help` prints all the operations.
 
-## Builtin operations
-
-| kws          | result |
-| ------------ | ------ |
-| `+`          | a+b    |
-| `-`          | b-a    |
-| `*`          | a\*b   |
-| `/`          | b/a    |
-| `neg` or `_` | -a     |
-| `oo`         | 1/a    |
-
-where a is the head of the stack, b is the second number, etc.
-All of them pops the args from the stack and pushes the result.
-
 # Make a module
 
 A module is a .so file that have a `void load(op_t *operation, int *op_count)` function (include `module.h` for definitions) that will push (`operation[(*op_count) ++] = ...`) new operations defined as:

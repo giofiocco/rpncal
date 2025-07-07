@@ -4,6 +4,7 @@
 #include <ncurses.h>
 
 #define MAX_KW_COUNT 16
+
 typedef struct {
   char *kws[MAX_KW_COUNT];
   int nargs;

@@ -16,6 +16,18 @@
   refresh();                                        \
   getch();
 
+int load_module(void **modules, int *module_count, char *module_path, op_t *operations, int *op_count) {
+  modules[(*module_count)++] = dlopen(module_path, RTLD_NOW);
+  if (!modules[(*module_count) - 1]) {
+    eprint("module not loaded: '%s': %s", module_path, dlerror());
+    return 0;
+  }
+
+  ((load_func_t)dlsym(modules[*module_count - 1], "load"))(operations, op_count);
+
+  return 1;
+}
+
 void sum(double *stack, int *head) {
   int a = stack[*head - 1];
   if (*head < a) {
@@ -47,7 +59,7 @@ int main() {
   void *modules[2048] = {0};
   int module_count = 0;
 
-  char *helps[9][2] = {
+  char *helps[][2] = {
       {"include <name>", "include module"},
       {"quit | exit", "end program"},
       {"? | help", "print all operations"},
@@ -55,8 +67,13 @@ int main() {
       {"-", "b - a"},
       {"*", "a * b"},
       {"/", "b / a"},
+      {".", "drop one element"},
       {"neg | _", "-a"},
       {"oo", "1 / a"}};
+
+  char *autoload_modules[] = {
+      "./modules/trig.so",
+  };
 
   initscr();
   if (0 && has_colors()) {
@@ -64,14 +81,19 @@ int main() {
     init_pair(1, COLOR_RED, COLOR_BLACK);
   }
 
+  int autoload_count = sizeof(autoload_modules) / sizeof(autoload_modules[0]);
+  for (int i = 0; i < autoload_count; ++i) {
+    load_module(modules, &module_count, autoload_modules[i], operations, &op_count);
+  }
+
   while (1) {
     erase();
     mvprintw(0, 0, "> ");
     for (int i = 0; i < head; ++i) {
-      if (stack[i] - (int)stack[i] < 0.00000001) {
-        mvprintw(head - i, 0, "%d: %E    %d\n", head - i - 1, stack[i], (int)stack[i]);
-      } else {
+      if (stack[i] < 0) {
         mvprintw(head - i, 0, "%d: %E    %f\n", head - i - 1, stack[i], stack[i]);
+      } else {
+        mvprintw(head - i, 0, "%d:  %E    %f\n", head - i - 1, stack[i], stack[i]);
       }
     }
     refresh();
@@ -96,20 +118,12 @@ int main() {
       } else {
         snprintf(arg, 90, "./%s.so", argstart);
       }
-      modules[module_count++] = dlopen(arg, RTLD_NOW);
-      if (!modules[module_count - 1]) {
-        eprint("module not loaded: '%s'", arg);
-        continue;
-      }
 
       int start_count = op_count;
-      ((load_func_t)dlsym(modules[module_count - 1], "load"))(operations, &op_count);
-
-      mvprintw(0, 0, "LOADED %d OPERATIONS FROM MODULE %s", op_count - start_count, arg);
-      getch();
-
-    } else if ('0' <= buffer[0] && buffer[0] <= '9') {
-      stack[head++] = strtod(buffer, NULL);
+      if (load_module(modules, &module_count, arg, operations, &op_count)) {
+        mvprintw(0, 0, "LOADED %d OPERATIONS FROM MODULE %s", op_count - start_count, arg);
+        getch();
+      }
 
     } else if (strcmp(buffer, "quit") == 0 || strcmp(buffer, "exit") == 0) {
       break;
@@ -166,6 +180,7 @@ int main() {
         case '*': stack[head++] = a * b; break;
         case '/': stack[head++] = b / a; break;
       }
+
     } else if (strcmp(buffer, "oo") == 0) {
       if (head < 1) {
         eprint("'%s' NEEDS 1 ARG", buffer);
@@ -173,24 +188,36 @@ int main() {
       }
       double a = stack[--head];
       stack[head++] = 1.0 / a;
+
     } else if (strcmp(buffer, "neg") == 0 || strcmp(buffer, "_") == 0) {
       if (head < 1) {
-        eprint("'%c' NEEDS 1 ARG", buffer[0]);
+        eprint("'%s' NEEDS 1 ARG", buffer);
         continue;
       }
       double a = stack[--head];
       stack[head++] = -a;
+
+    } else if (strcmp(buffer, ".") == 0) {
+      if (head < 1) {
+        eprint("'%s' NEEDS 1 ARG", buffer);
+        continue;
+      }
+      --head;
+
+    } else if (('0' <= buffer[0] && buffer[0] <= '9') || buffer[0] == '-' || (buffer[0] == '.' && buffer[1] != '\0')) {
+      stack[head++] = strtod(buffer, NULL);
+
     } else {
       bool is_found = false;
       for (int i = 0; i < op_count; ++i) {
         for (int j = 0; j < MAX_KW_COUNT && operations[i].kws[j]; ++j) {
           if (strcmp(operations[i].kws[j], buffer) == 0) {
+            is_found = true;
             if (head < operations[i].nargs) {
               eprint("'%s' NEEDS AT LEAST %d ARGS", buffer, operations[i].nargs);
-              continue;
+              goto found;
             }
             operations[i].func(stack, &head);
-            is_found = true;
             goto found;
           }
         }

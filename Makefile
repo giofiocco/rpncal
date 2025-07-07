@@ -1,15 +1,17 @@
-all: rpncal module.so
-.PHONY: all
+all: rpncal $(patsubst %.c,%.so, $(wildcard modules/*.c))
+.PHONY: all run clean
 
-CFLAGS=-Wall -Wextra
+CFLAGS=-Wall -Wextra -g
 
-rpncal: main.c
-	$(CC) $(CFLAGS) -o $@ $< -lncurses
+rpncal: rpncal.c
+	$(CC) $(CFLAGS) -o $@ $< -lncurses -lm
 
-module.so: module.c module.h
+%.so: %.c module.h
 	$(CC) $(CFLAGS) -c -fpic -o $@.o $<
 	$(CC) $(CFLAGS) -shared -o $@ $@.o
 
-.PHONY: run
 run: rpncal
 	./$<
+
+clean:
+	rm rpncal modules/*.o modules/*.so
