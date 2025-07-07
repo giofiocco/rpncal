@@ -40,7 +40,7 @@ int main() {
   }
 
   calc_t calc = {0};
-  calc.printers[calc.printer_count++] = (printer_t){"default printer", default_printer};
+  calc.printers[calc.printer_count++] = (printer_t){"default", default_printer};
 
   double stack[2048] = {0};
   int head = 0;
@@ -55,6 +55,7 @@ int main() {
   char *autoload_modules[] = {
       "./modules/core.so",
       "./modules/trig.so",
+      "./modules/complex.so",
   };
 
   int autoload_count = sizeof(autoload_modules) / sizeof(autoload_modules[0]);
@@ -96,9 +97,10 @@ int main() {
         snprintf(arg, 90, "./%s.so", argstart);
       }
 
-      int start_count = calc.op_count;
+      int start_ops = calc.op_count;
+      int start_printers = calc.printer_count;
       if (load_module(&calc, arg)) {
-        mvprintw(0, 0, "loaded %d operations from module %s", calc.op_count - start_count, arg);
+        mvprintw(0, 0, "loaded %d operations and %d printers from module %s", calc.op_count - start_ops, calc.printer_count - start_printers, arg);
         getch();
       }
 
@@ -139,12 +141,18 @@ int main() {
       }
 
       move(count + calc.op_count, 0);
+
+      printw("Printers:\n");
+      for (int i = 0; i < calc.printer_count; ++i) {
+        printw("%s\n", calc.printers[i].name);
+      }
+
       refresh();
       getch();
 
     } else if (strcmp(buffer, ".") == 0) {
       if (head < 1) {
-        eprint("'%s' NEEDS 1 ARG", buffer);
+        eprint("'%s' needs 1 arg", buffer);
         continue;
       }
       head--;
@@ -159,12 +167,19 @@ int main() {
           if (strcmp(calc.operations[i].kws[j], buffer) == 0) {
             is_found = true;
             if (head < calc.operations[i].nargs) {
-              eprint("'%s' NEEDS AT LEAST %d ARGS", buffer, calc.operations[i].nargs);
+              eprint("'%s' needs at least %d args", buffer, calc.operations[i].nargs);
               goto found;
             }
             calc.operations[i].func(stack, &head);
             goto found;
           }
+        }
+      }
+      for (int i = 0; i < calc.printer_count; ++i) {
+        if (strcmp(calc.printers[i].name, buffer) == 0) {
+          is_found = true;
+          calc.current_printer = i;
+          goto found;
         }
       }
     found:
