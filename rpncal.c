@@ -9,37 +9,28 @@
 
 #include "module.h"
 
-#define eprint(fmt, ...)                            \
-  attron(COLOR_PAIR(1));                            \
-  mvprintw(0, 0, "ERROR: " fmt "...", __VA_ARGS__); \
-  attroff(COLOR_PAIR(1));                           \
-  refresh();                                        \
-  getch();
+// TODO: div doesnt work
 
-int load_module(void **modules, int *module_count, char *module_path, op_t *operations, int *op_count) {
-  modules[(*module_count)++] = dlopen(module_path, RTLD_NOW);
-  if (!modules[(*module_count) - 1]) {
+int load_module(calc_t *calc, char *module_path) {
+  assert(calc);
+
+  assert(calc->module_count + 1 < MAX_MODULES);
+  void *lib = dlopen(module_path, RTLD_NOW);
+  if (!lib) {
     eprint("module not loaded: '%s': %s", module_path, dlerror());
     return 0;
   }
+  calc->modules[calc->module_count++] = lib;
 
-  ((load_func_t)dlsym(modules[*module_count - 1], "load"))(operations, op_count);
+  ((void (*)(calc_t *))dlsym(lib, "load"))(calc);
 
   return 1;
 }
 
-void sum(double *stack, int *head) {
-  int a = stack[*head - 1];
-  if (*head < a) {
-    eprint("sum %d expects %d elements in the stack", a, a);
-    return;
+void default_printer(double *stack, int count) {
+  for (int i = 0; i < count; ++i) {
+    mvprintw(count - i, 0, "%d: %s%E    %f\n", count - i - 1, stack[i] < 0 ? "" : " ", stack[i], stack[i]);
   }
-  --(*head);
-  double sum = 0;
-  for (int i = 0; i < a; ++i) {
-    sum += stack[--(*head)];
-  }
-  stack[(*head)++] = sum;
 }
 
 int main() {
@@ -48,32 +39,12 @@ int main() {
     return 1;
   }
 
-  op_t operations[2048] = {0};
-  int op_count = 0;
+  calc_t calc = {0};
+  calc.printers[calc.printer_count++] = (printer_t){"default printer", default_printer};
+
   double stack[2048] = {0};
   int head = 0;
   char buffer[80] = {0};
-
-  operations[op_count++] = (op_t){{"sum"}, 2, "sum first a elements from the stack", sum};
-
-  void *modules[2048] = {0};
-  int module_count = 0;
-
-  char *helps[][2] = {
-      {"include <name>", "include module"},
-      {"quit | exit", "end program"},
-      {"? | help", "print all operations"},
-      {"+", "a + b"},
-      {"-", "b - a"},
-      {"*", "a * b"},
-      {"/", "b / a"},
-      {".", "drop one element"},
-      {"neg | _", "-a"},
-      {"oo", "1 / a"}};
-
-  char *autoload_modules[] = {
-      "./modules/trig.so",
-  };
 
   initscr();
   if (0 && has_colors()) {
@@ -81,17 +52,27 @@ int main() {
     init_pair(1, COLOR_RED, COLOR_BLACK);
   }
 
+  char *autoload_modules[] = {
+      "./modules/core.so",
+      "./modules/trig.so",
+  };
+
   int autoload_count = sizeof(autoload_modules) / sizeof(autoload_modules[0]);
   for (int i = 0; i < autoload_count; ++i) {
-    load_module(modules, &module_count, autoload_modules[i], operations, &op_count);
+    load_module(&calc, autoload_modules[i]);
   }
+
+  char *helps[][2] = {
+      {"include <name>", "include module"},
+      {"quit | exit", "end program"},
+      {"? | help", "print all operations"},
+      {".", "drop one element"},
+  };
 
   while (1) {
     erase();
     mvprintw(0, 0, "> ");
-    for (int i = 0; i < head; ++i) {
-      mvprintw(head - i, 0, "%d: %s%E    %f\n", head - i - 1, stack[i] < 0 ? "" : " ", stack[i], stack[i]);
-    }
+    calc.printers[calc.current_printer].func(stack, head);
     refresh();
     mvgetstr(0, 2, buffer);
 
@@ -115,9 +96,9 @@ int main() {
         snprintf(arg, 90, "./%s.so", argstart);
       }
 
-      int start_count = op_count;
-      if (load_module(modules, &module_count, arg, operations, &op_count)) {
-        mvprintw(0, 0, "LOADED %d OPERATIONS FROM MODULE %s", op_count - start_count, arg);
+      int start_count = calc.op_count;
+      if (load_module(&calc, arg)) {
+        mvprintw(0, 0, "loaded %d operations from module %s", calc.op_count - start_count, arg);
         getch();
       }
 
@@ -135,16 +116,16 @@ int main() {
         maxw = w > maxw ? w : maxw;
       }
 
-      for (int i = 0; i < op_count; ++i) {
+      for (int i = 0; i < calc.op_count; ++i) {
         move(count + i, 0);
         int w = 0;
-        for (int j = 0; j < MAX_KW_COUNT && operations[i].kws[j]; ++j) {
+        for (int j = 0; j < MAX_KW_COUNT && calc.operations[i].kws[j]; ++j) {
           if (j > 0) {
             printw(" | ");
             w += 3;
           }
-          printw("%s", operations[i].kws[j]);
-          w += strlen(operations[i].kws[j]);
+          printw("%s", calc.operations[i].kws[j]);
+          w += strlen(calc.operations[i].kws[j]);
         }
         maxw = w > maxw ? w : maxw;
       }
@@ -153,69 +134,35 @@ int main() {
         mvprintw(i, maxw + 4, "%s", helps[i][1]);
       }
 
-      for (int i = 0; i < op_count; ++i) {
-        mvprintw(count + i, maxw + 4, "%s", operations[i].description);
+      for (int i = 0; i < calc.op_count; ++i) {
+        mvprintw(count + i, maxw + 4, "%s", calc.operations[i].description);
       }
 
-      move(count + op_count, 0);
+      move(count + calc.op_count, 0);
       refresh();
       getch();
-
-    } else if (strcmp(buffer, "+") == 0
-               || strcmp(buffer, "-") == 0
-               || strcmp(buffer, "*") == 0
-               || strcmp(buffer, "/") == 0) {
-      if (head < 2) {
-        eprint("'%s' NEEDS 2 ARGS", buffer);
-        continue;
-      }
-      double a = stack[--head];
-      double b = stack[--head];
-
-      switch (buffer[0]) {
-        case '+': stack[head++] = a + b; break;
-        case '-': stack[head++] = b - a; break;
-        case '*': stack[head++] = a * b; break;
-        case '/': stack[head++] = b / a; break;
-      }
-
-    } else if (strcmp(buffer, "oo") == 0) {
-      if (head < 1) {
-        eprint("'%s' NEEDS 1 ARG", buffer);
-        continue;
-      }
-      double a = stack[--head];
-      stack[head++] = 1.0 / a;
-
-    } else if (strcmp(buffer, "neg") == 0 || strcmp(buffer, "_") == 0) {
-      if (head < 1) {
-        eprint("'%s' NEEDS 1 ARG", buffer);
-        continue;
-      }
-      double a = stack[--head];
-      stack[head++] = -a;
 
     } else if (strcmp(buffer, ".") == 0) {
       if (head < 1) {
         eprint("'%s' NEEDS 1 ARG", buffer);
         continue;
       }
-      --head;
+      head--;
 
-    } else if (('0' <= buffer[0] && buffer[0] <= '9') || buffer[0] == '-' || (buffer[0] == '.' && buffer[1] != '\0')) {
+    } else if (('0' <= buffer[0] && buffer[0] <= '9') || ((buffer[0] == '.' || buffer[0] == '-') && buffer[1] != '\0')) {
       stack[head++] = strtod(buffer, NULL);
 
     } else {
       bool is_found = false;
-      for (int i = 0; i < op_count; ++i) {
-        for (int j = 0; j < MAX_KW_COUNT && operations[i].kws[j]; ++j) {
-          if (strcmp(operations[i].kws[j], buffer) == 0) {
+      for (int i = 0; i < calc.op_count; ++i) {
+        for (int j = 0; j < MAX_KW_COUNT && calc.operations[i].kws[j]; ++j) {
+          if (strcmp(calc.operations[i].kws[j], buffer) == 0) {
             is_found = true;
-            if (head < operations[i].nargs) {
-              eprint("'%s' NEEDS AT LEAST %d ARGS", buffer, operations[i].nargs);
+            if (head < calc.operations[i].nargs) {
+              eprint("'%s' NEEDS AT LEAST %d ARGS", buffer, calc.operations[i].nargs);
               goto found;
             }
-            operations[i].func(stack, &head);
+            calc.operations[i].func(stack, &head);
             goto found;
           }
         }
@@ -230,8 +177,8 @@ int main() {
 
   endwin();
 
-  for (int i = 0; i < module_count; ++i) {
-    dlclose(modules[i]);
+  for (int i = 0; i < calc.module_count; ++i) {
+    dlclose(calc.modules[i]);
   }
 
   return 0;
