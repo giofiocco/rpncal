@@ -90,11 +90,7 @@ int main() {
     erase();
     mvprintw(0, 0, "> ");
     for (int i = 0; i < head; ++i) {
-      if (stack[i] < 0) {
-        mvprintw(head - i, 0, "%d: %E    %f\n", head - i - 1, stack[i], stack[i]);
-      } else {
-        mvprintw(head - i, 0, "%d:  %E    %f\n", head - i - 1, stack[i], stack[i]);
-      }
+      mvprintw(head - i, 0, "%d: %s%E    %f\n", head - i - 1, stack[i] < 0 ? "" : " ", stack[i], stack[i]);
     }
     refresh();
     mvgetstr(0, 2, buffer);
@@ -148,21 +144,23 @@ int main() {
             w += 3;
           }
           printw("%s", operations[i].kws[j]);
-          w += strlen(operations[i].kws[i]);
+          w += strlen(operations[i].kws[j]);
         }
         maxw = w > maxw ? w : maxw;
       }
 
       for (int i = 0; i < count; ++i) {
-        mvprintw(i, maxw + 2, "%s", helps[i][1]);
+        mvprintw(i, maxw + 4, "%s", helps[i][1]);
       }
 
       for (int i = 0; i < op_count; ++i) {
-        mvprintw(count + i, maxw + 2, "%s", operations[i].description);
+        mvprintw(count + i, maxw + 4, "%s", operations[i].description);
       }
 
+      move(count + op_count, 0);
       refresh();
       getch();
+
     } else if (strcmp(buffer, "+") == 0
                || strcmp(buffer, "-") == 0
                || strcmp(buffer, "*") == 0

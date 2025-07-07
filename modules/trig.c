@@ -23,8 +23,8 @@ void rad(double *stack, int *head) {
 }
 
 void load(op_t *operations, int *op_count) {
-  operations[(*op_count)++] = (op_t){{"sin"}, 1, "sin(a)", sin_};
-  operations[(*op_count)++] = (op_t){{"cos"}, 1, "cos(a)", cos_};
+  operations[(*op_count)++] = (op_t){{"sin"}, 1, "sin(a) with a in radians", sin_};
+  operations[(*op_count)++] = (op_t){{"cos"}, 1, "cos(a) with a in radians", cos_};
   operations[(*op_count)++] = (op_t){{"deg"}, 1, "a to degrees", deg};
   operations[(*op_count)++] = (op_t){{"rad"}, 1, "a to radians", rad};
 }
