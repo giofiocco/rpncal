@@ -57,7 +57,7 @@ void load(calc_t *calc) {
   assert(calc);
   assert(calc->printer_count + 1 < MAX_PRINTERS);
   calc->printers[calc->printer_count++] = (printer_t){"complex", printer};
-  assert(calc->op_count + 3 < MAX_OPERATIONS);
+  assert(calc->op_count + 4 < MAX_OPERATIONS);
   calc->operations[calc->op_count++] = (op_t){{"c+"}, 4, "complex +", add};
   calc->operations[calc->op_count++] = (op_t){{"c-"}, 4, "complex -", sub};
   calc->operations[calc->op_count++] = (op_t){{"c*"}, 4, "complex *", mul};
