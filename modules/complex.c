@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <math.h>
 
+#define MODULE_IMPL
 #include "../module.h"
 
 void printer(double *stack, int count) {
@@ -54,12 +55,9 @@ void conj_(double *stack, int *head) {
 }
 
 void load(calc_t *calc) {
-  assert(calc);
-  assert(calc->printer_count + 1 < MAX_PRINTERS);
-  calc->printers[calc->printer_count++] = (printer_t){"complex", printer};
-  assert(calc->op_count + 4 < MAX_OPERATIONS);
-  calc->operations[calc->op_count++] = (op_t){{"c+"}, 4, "complex +", add};
-  calc->operations[calc->op_count++] = (op_t){{"c-"}, 4, "complex -", sub};
-  calc->operations[calc->op_count++] = (op_t){{"c*"}, 4, "complex *", mul};
-  calc->operations[calc->op_count++] = (op_t){{"c_"}, 2, "complex conj", conj_};
+  add_printer(calc, "complex", printer);
+  add_op(calc, (op_t){{"c+"}, 4, "complex +", add});
+  add_op(calc, (op_t){{"c-"}, 4, "complex -", sub});
+  add_op(calc, (op_t){{"c*"}, 4, "complex *", mul});
+  add_op(calc, (op_t){{"c_"}, 2, "complex conj", conj_});
 }

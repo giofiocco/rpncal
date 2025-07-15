@@ -212,7 +212,9 @@ int main(int argc, char **argv) {
         int start_ops = calc.op_count;
         int start_printers = calc.printer_count;
         if (load_module(&calc, path)) {
-          mvprintw(0, 0, "loaded %d operations and %d printers from module %s", calc.op_count - start_ops, calc.printer_count - start_printers, path);
+          move(0, 0);
+          clrtoeol();
+          printw("loaded %d operations and %d printers from module %s", calc.op_count - start_ops, calc.printer_count - start_printers, path);
           getch();
         }
 
@@ -290,6 +292,12 @@ int main(int argc, char **argv) {
           if (sv_eq(sv_from_cstr(calc.printers[i].name), token.as.sv)) {
             is_found = true;
             calc.current_printer = i;
+
+            move(0, 0);
+            clrtoeol();
+            printw("set printer: %s", calc.printers[calc.current_printer].name);
+            getch();
+
             goto found;
           }
         }
@@ -304,117 +312,6 @@ int main(int argc, char **argv) {
         assert(0 && "unreachable");
       }
     }
-
-    /*
-    if (strcmp(_buffer, "include") == 0) {
-      char *argstart = strchr(buffer, ' ') + 1;
-      char arg[90] = {0};
-      if (*argstart == '/') {
-        snprintf(arg, 90, "%s.so", argstart);
-      } else {
-        snprintf(arg, 90, "./%s.so", argstart);
-      }
-
-      int start_ops = calc.op_count;
-      int start_printers = calc.printer_count;
-      if (load_module(&calc, arg)) {
-        mvprintw(0, 0, "loaded %d operations and %d printers from module %s", calc.op_count - start_ops, calc.printer_count - start_printers, arg);
-        getch();
-      }
-
-    } else if (strcmp(buffer, "quit") == 0 || strcmp(buffer, "exit") == 0) {
-      break;
-
-    } else if (strcmp(buffer, "?") == 0 || strcmp(buffer, "help") == 0) {
-      erase();
-
-      int maxw = 0;
-      int count = sizeof(helps) / sizeof(helps[0]);
-      for (int i = 0; i < count; ++i) {
-        mvprintw(i, 0, "%s", helps[i][0]);
-        int w = strlen(helps[i][0]);
-        maxw = w > maxw ? w : maxw;
-      }
-
-      for (int i = 0; i < calc.op_count; ++i) {
-        move(count + i, 0);
-        int w = 0;
-        for (int j = 0; j < MAX_KW_COUNT && calc.operations[i].kws[j]; ++j) {
-          if (j > 0) {
-            printw(" | ");
-            w += 3;
-          }
-          printw("%s", calc.operations[i].kws[j]);
-          w += strlen(calc.operations[i].kws[j]);
-        }
-        maxw = w > maxw ? w : maxw;
-      }
-
-      for (int i = 0; i < count; ++i) {
-        mvprintw(i, maxw + 4, "%s", helps[i][1]);
-      }
-
-      for (int i = 0; i < calc.op_count; ++i) {
-        mvprintw(count + i, maxw + 4, "%s", calc.operations[i].description);
-      }
-
-      move(count + calc.op_count, 0);
-
-      printw("Printers:\n");
-      for (int i = 0; i < calc.printer_count; ++i) {
-        printw("%s\n", calc.printers[i].name);
-      }
-
-      refresh();
-      getch();
-
-    } else if (strcmp(buffer, ".") == 0) {
-      if (head < 1) {
-        eprint("'%s' needs 1 arg", buffer);
-        continue;
-      }
-      head--;
-
-    } else if (strcmp(buffer, ":") == 0) {
-      if (head < 1) {
-        eprint("'%s' needs 1 arg", buffer);
-        continue;
-      }
-      stack[head] = stack[head - 1];
-      head++;
-
-    } else if (('0' <= buffer[0] && buffer[0] <= '9') || ((buffer[0] == '.' || buffer[0] == '-') && buffer[1] != '\0')) {
-      stack[head++] = strtod(buffer, NULL);
-
-    } else {
-      bool is_found = false;
-      for (int i = 0; i < calc.op_count; ++i) {
-        for (int j = 0; j < MAX_KW_COUNT && calc.operations[i].kws[j]; ++j) {
-          if (strcmp(calc.operations[i].kws[j], buffer) == 0) {
-            is_found = true;
-            if (head < calc.operations[i].nargs) {
-              eprint("'%s' needs at least %d args", buffer, calc.operations[i].nargs);
-              goto found;
-            }
-            calc.operations[i].func(stack, &head);
-            goto found;
-          }
-        }
-      }
-      for (int i = 0; i < calc.printer_count; ++i) {
-        if (strcmp(calc.printers[i].name, buffer) == 0) {
-          is_found = true;
-          calc.current_printer = i;
-          goto found;
-        }
-      }
-    found:
-      if (!is_found) {
-        eprint("operation not found: '%s'", buffer);
-        continue;
-      }
-    }
-  */
   }
 close:
 

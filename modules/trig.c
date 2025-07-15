@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <math.h>
 
+#define MODULE_IMPL
 #include "../module.h"
 
 void sin_(double *stack, int *head) {
@@ -44,14 +45,12 @@ void rad(double *stack, int *head) {
 }
 
 void load(calc_t *calc) {
-  assert(calc);
-  assert(calc->op_count + 8 < MAX_OPERATIONS);
-  calc->operations[calc->op_count++] = (op_t){{"sin"}, 1, "sin(a) with a in radians", sin_};
-  calc->operations[calc->op_count++] = (op_t){{"cos"}, 1, "cos(a) with a in radians", cos_};
-  calc->operations[calc->op_count++] = (op_t){{"tan"}, 1, "tan(a) with a in radians", tan_};
-  calc->operations[calc->op_count++] = (op_t){{"asin"}, 1, "inverse sin(a) in radians", asin_};
-  calc->operations[calc->op_count++] = (op_t){{"acos"}, 1, "inverse cos(a) in radians", acos_};
-  calc->operations[calc->op_count++] = (op_t){{"atan"}, 1, "inverse tan(a) in radians", atan_};
-  calc->operations[calc->op_count++] = (op_t){{"deg"}, 1, "a to degrees", deg};
-  calc->operations[calc->op_count++] = (op_t){{"rad"}, 1, "a to radians", rad};
+  add_op(calc, (op_t){{"sin"}, 1, "sin(a) with a in radians", sin_});
+  add_op(calc, (op_t){{"cos"}, 1, "cos(a) with a in radians", cos_});
+  add_op(calc, (op_t){{"tan"}, 1, "tan(a) with a in radians", tan_});
+  add_op(calc, (op_t){{"asin"}, 1, "inverse sin(a) in radians", asin_});
+  add_op(calc, (op_t){{"acos"}, 1, "inverse cos(a) in radians", acos_});
+  add_op(calc, (op_t){{"atan"}, 1, "inverse tan(a) in radians", atan_});
+  add_op(calc, (op_t){{"deg"}, 1, "a to degrees", deg});
+  add_op(calc, (op_t){{"rad"}, 1, "a to radians", rad});
 }

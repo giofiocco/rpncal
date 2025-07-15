@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <math.h>
 
+#define MODULE_IMPL
 #include "../module.h"
 
 void add(double *stack, int *head) {
@@ -71,19 +72,23 @@ void square(double *stack, int *head) {
   stack[*head - 1] *= stack[*head - 1];
 }
 
+void pow_(double *stack, int *head) {
+  double a = stack[--(*head)];
+  stack[*head - 1] = pow(stack[*head - 1], a);
+}
+
 void load(calc_t *calc) {
-  assert(calc);
-  assert(calc->op_count + 12 < MAX_OPERATIONS);
-  calc->operations[calc->op_count++] = (op_t){{"+"}, 2, "a + b", add};
-  calc->operations[calc->op_count++] = (op_t){{"-"}, 2, "b - a", sub};
-  calc->operations[calc->op_count++] = (op_t){{"*"}, 2, "a * b", mul};
-  calc->operations[calc->op_count++] = (op_t){{"/"}, 2, "b / a", div_};
-  calc->operations[calc->op_count++] = (op_t){{"neg", "_"}, 1, "-a", neg};
-  calc->operations[calc->op_count++] = (op_t){{"oo"}, 1, "1 / a", oo};
-  calc->operations[calc->op_count++] = (op_t){{"sum"}, 2, "sum first a elements", sum};
-  calc->operations[calc->op_count++] = (op_t){{"mean"}, 2, "mean of first a elements", mean};
-  calc->operations[calc->op_count++] = (op_t){{"pi"}, 0, "pi", pi};
-  calc->operations[calc->op_count++] = (op_t){{"exp"}, 0, "exp(a)", exp_};
-  calc->operations[calc->op_count++] = (op_t){{"sqrt"}, 0, "sqrt(a)", sqrt_};
-  calc->operations[calc->op_count++] = (op_t){{"^2"}, 0, "a ^ 2", square};
+  add_op(calc, (op_t){{"+"}, 2, "a + b", add});
+  add_op(calc, (op_t){{"-"}, 2, "b - a", sub});
+  add_op(calc, (op_t){{"*"}, 2, "a * b", mul});
+  add_op(calc, (op_t){{"/"}, 2, "b / a", div_});
+  add_op(calc, (op_t){{"neg", "_"}, 1, "-a", neg});
+  add_op(calc, (op_t){{"oo"}, 1, "1 / a", oo});
+  add_op(calc, (op_t){{"sum"}, 2, "sum first a elements", sum});
+  add_op(calc, (op_t){{"mean"}, 2, "mean of first a elements", mean});
+  add_op(calc, (op_t){{"pi"}, 0, "pi", pi});
+  add_op(calc, (op_t){{"exp"}, 0, "exp(a)", exp_});
+  add_op(calc, (op_t){{"sqrt"}, 0, "sqrt(a)", sqrt_});
+  add_op(calc, (op_t){{"^2"}, 0, "a ^ 2", square});
+  add_op(calc, (op_t){{"pow", "^"}, 2, "b ^ a", pow_});
 }
