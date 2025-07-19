@@ -8,26 +8,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define MODULE_IMPL
 #include "module.h"
-
-typedef struct {
-  char *start;
-  int len;
-} sv_t;
-
-#define SV_FMT            "%*.*s"
-#define SV_UNPACK(__sv__) (__sv__.len), (__sv__.len), (__sv__.start)
-
-sv_t sv_from_cstr(char *s) {
-  return (sv_t){s, strlen(s)};
-}
-
-bool sv_eq(sv_t a, sv_t b) {
-  if (a.len != b.len) {
-    return false;
-  }
-  return memcmp(a.start, b.start, a.len) == 0;
-}
 
 typedef enum {
   T_NONE,
@@ -86,6 +68,18 @@ int load_module(calc_t *calc, char *module_path) {
   return 1;
 }
 
+void trie_print(trie_t *node, int offset) {
+  assert(node);
+
+  for (int i = 0; i < 128; ++i) {
+    if (node->children[i]) {
+      printf("%*.*s", offset, offset, "                                                                                                    ");
+      printf("%c %d\n", i, node->children[i]->index);
+      trie_print(node->children[i], offset + 1);
+    }
+  }
+}
+
 void default_printer(double *stack, int count) {
   for (int i = 0; i < count; ++i) {
     mvprintw(count - i, 0, "%d: %s%E    %f\n", count - i - 1, stack[i] < 0 ? "" : " ", stack[i], stack[i]);
@@ -117,7 +111,7 @@ int main(int argc, char **argv) {
   }
 
   calc_t calc = {0};
-  calc.printers[calc.printer_count++] = (printer_t){"default", default_printer};
+  add_printer(&calc, "default", default_printer);
 
   double stack[2048] = {0};
   int head = 0;
@@ -275,18 +269,17 @@ int main(int argc, char **argv) {
       } else if (token.kind == T_OP) {
 
         bool is_found = false;
-        for (int i = 0; i < calc.op_count; ++i) {
-          for (int j = 0; j < MAX_KW_COUNT && calc.operations[i].kws[j]; ++j) {
-            if (sv_eq(sv_from_cstr(calc.operations[i].kws[j]), token.as.sv)) {
-              is_found = true;
-              if (head < calc.operations[i].nargs) {
-                eprint("'%s' needs at least %d args", buffer, calc.operations[i].nargs);
-                goto found;
-              }
-              calc.operations[i].func(stack, &head);
-              goto found;
-            }
+
+        int op_index = trie_search(&calc.op_trie, token.as.sv);
+        if (op_index != -1) {
+          if (head < calc.operations[op_index].nargs) {
+            eprint("'" SV_FMT "' needs at least %d args", SV_UNPACK(token.as.sv), calc.operations[op_index].nargs);
+            goto found;
           }
+          calc.operations[op_index].func(stack, &head);
+
+          is_found = true;
+          goto found;
         }
         for (int i = 0; i < calc.printer_count; ++i) {
           if (sv_eq(sv_from_cstr(calc.printers[i].name), token.as.sv)) {
@@ -316,6 +309,8 @@ int main(int argc, char **argv) {
 close:
 
   endwin();
+
+  trie_print(&calc.op_trie, 0);
 
   for (int i = 0; i < calc.module_count; ++i) {
     dlclose(calc.modules[i]);
