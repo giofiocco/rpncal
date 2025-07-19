@@ -272,13 +272,13 @@ int main(int argc, char **argv) {
 
         int op_index = trie_search(&calc.op_trie, token.as.sv);
         if (op_index != -1) {
+          is_found = true;
           if (head < calc.operations[op_index].nargs) {
             eprint("'" SV_FMT "' needs at least %d args", SV_UNPACK(token.as.sv), calc.operations[op_index].nargs);
             goto found;
           }
           calc.operations[op_index].func(stack, &head);
 
-          is_found = true;
           goto found;
         }
         for (int i = 0; i < calc.printer_count; ++i) {
@@ -309,8 +309,6 @@ int main(int argc, char **argv) {
 close:
 
   endwin();
-
-  trie_print(&calc.op_trie, 0);
 
   for (int i = 0; i < calc.module_count; ++i) {
     dlclose(calc.modules[i]);
