@@ -124,6 +124,9 @@ int main(int argc, char **argv) {
     start_color();
     init_pair(1, COLOR_RED, COLOR_BLACK);
   }
+  int width = 0;
+  int height = 0;
+  getmaxyx(stdscr, height, width);
 
   char *autoload_modules[] = {
       "./modules/core.so",
@@ -145,6 +148,9 @@ int main(int argc, char **argv) {
 
   while (1) {
     erase();
+    char *printer_name = calc.printers[calc.current_printer].name;
+    int printer_name_len = strlen(printer_name);
+    mvprintw(0, width - printer_name_len, "%s", printer_name);
     mvprintw(0, 0, "> ");
     calc.printers[calc.current_printer].func(stack, head);
     refresh();
@@ -177,7 +183,8 @@ int main(int argc, char **argv) {
       }
       move(0, 0);
       clrtoeol();
-      printw("> %s", buffer);
+      mvprintw(0, width - printer_name_len, "%s", printer_name);
+      mvprintw(0, 0, "> %s", buffer);
       move(0, 2 + i);
     }
 
@@ -285,12 +292,6 @@ int main(int argc, char **argv) {
           if (sv_eq(sv_from_cstr(calc.printers[i].name), token.as.sv)) {
             is_found = true;
             calc.current_printer = i;
-
-            move(0, 0);
-            clrtoeol();
-            printw("set printer: %s", calc.printers[calc.current_printer].name);
-            getch();
-
             goto found;
           }
         }

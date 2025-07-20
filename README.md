@@ -7,8 +7,14 @@ It operates on `double`s.
 - `include <path>` includes the module `path` as a .so file (`./path.so` or `path.so` if is an absolute path).
 - `quit` or `exit` ends the program.
 - `?` or `help` prints all the operations.
+- `.` to drop first element
+- `:` to duplicate first element
 
 Multiple operations and number can be entered at once.
+
+## Usage
+
+Run `make` to compile the calculator and the provided modules in the `modules/` directory.
 
 # Make a module
 
@@ -49,11 +55,18 @@ the litteral form can be `(op_t){{"kw1", "kw2", ...}, ..., "...", ...}`.
 
 The function that implement the logic has to be: `void sub(double *stack, int *head)`
 
-poping a number: `double a = stack[--(*head)];`
+- poping a number: `double a = stack[--(*head)];`
+- pushing a number: `stack[(*head)++] = b;`
 
-pushing a number: `stack[(*head)++] = b;`
-
-## Printer
+## Printers
 
 The printer function has to be: `void printer(double *stack, int count)`
 and visualize the stack using `ncurses`'s functions leaving the first rowfor the input.
+
+# Modules provided
+
+`core` and `trig` are autoloaded
+
+- `core`: for basic operations
+- `trig`: for trigonometric operations
+- `complex`: for complex number (with printer)
