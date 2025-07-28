@@ -77,6 +77,23 @@ void pow_(double *stack, int *head) {
   stack[*head - 1] = pow(stack[*head - 1], a);
 }
 
+void ln(double *stack, int *head) {
+  stack[*head - 1] = log(stack[*head - 1]);
+}
+
+void log10_(double *stack, int *head) {
+  stack[*head - 1] = log10(stack[*head - 1]);
+}
+
+void log2_(double *stack, int *head) {
+  stack[*head - 1] = log2(stack[*head - 1]);
+}
+
+void log_(double *stack, int *head) {
+  double a = stack[--(*head)];
+  stack[*head - 1] = log(stack[*head - 1]) / log(a);
+}
+
 void load(calc_t *calc) {
   add_op(calc, (op_t){{"+"}, 2, "a + b", add});
   add_op(calc, (op_t){{"-"}, 2, "b - a", sub});
@@ -91,4 +108,8 @@ void load(calc_t *calc) {
   add_op(calc, (op_t){{"sqrt"}, 0, "sqrt(a)", sqrt_});
   add_op(calc, (op_t){{"^2"}, 0, "a ^ 2", square});
   add_op(calc, (op_t){{"pow", "^"}, 2, "b ^ a", pow_});
+  add_op(calc, (op_t){{"ln"}, 1, "ln(a)", ln});
+  add_op(calc, (op_t){{"log10"}, 1, "log_10(a)", log10_});
+  add_op(calc, (op_t){{"log2"}, 1, "log_2(a)", log2_});
+  add_op(calc, (op_t){{"log"}, 2, "log_a(b)", log_});
 }

@@ -124,9 +124,6 @@ int main(int argc, char **argv) {
     start_color();
     init_pair(1, COLOR_RED, COLOR_BLACK);
   }
-  int width = 0;
-  int height = 0;
-  getmaxyx(stdscr, height, width);
 
   char *autoload_modules[] = {
       "./modules/core.so",
@@ -146,7 +143,11 @@ int main(int argc, char **argv) {
       {":", "duplicate first element"},
   };
 
+  int width = 0;
+  int height = 0;
   while (1) {
+    getmaxyx(stdscr, height, width);
+
     erase();
     char *printer_name = calc.printers[calc.current_printer].name;
     int printer_name_len = strlen(printer_name);
