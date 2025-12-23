@@ -1,0 +1,4 @@
+- make the help to print in multiple columns
+- scrollable help or help per module
+- lists as vectors
+- history

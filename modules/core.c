@@ -94,7 +94,20 @@ void log_(double *stack, int *head) {
   stack[*head - 1] = log(stack[*head - 1]) / log(a);
 }
 
+void drop(double *stack, int *head) {
+  (void)stack;
+  (*head)--;
+}
+
+void dup_(double *stack, int *head) {
+  double a = stack[*head - 1];
+  stack[(*head)++] = a;
+}
+
 void load(calc_t *calc) {
+  add_op(calc, (op_t){{"."}, 1, "drop first element", drop});
+  add_op(calc, (op_t){{":"}, 1, "duplicate first element", dup_});
+
   add_op(calc, (op_t){{"+"}, 2, "a + b", add});
   add_op(calc, (op_t){{"-"}, 2, "b - a", sub});
   add_op(calc, (op_t){{"*"}, 2, "a * b", mul});

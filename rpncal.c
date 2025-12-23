@@ -25,6 +25,16 @@ typedef struct {
   } as;
 } token_t;
 
+void trie_free(trie_t *node) {
+  if (!node) {
+    return;
+  }
+  for (int i = 0; i < 128; ++i) {
+    trie_free(node->children[i]);
+  }
+  free(node);
+}
+
 token_t token_next(char **_buffer) {
   char *buffer = *_buffer;
 
@@ -139,8 +149,6 @@ int main(int argc, char **argv) {
       {"include <name>", "include module"},
       {"quit | exit", "end program"},
       {"? | help", "print all operations"},
-      {".", "drop first element"},
-      {":", "duplicate first element"},
   };
 
   int width = 0;
@@ -148,15 +156,20 @@ int main(int argc, char **argv) {
   while (1) {
     getmaxyx(stdscr, height, width);
 
+    // UI
     erase();
     char *printer_name = calc.printers[calc.current_printer].name;
     int printer_name_len = strlen(printer_name);
     mvprintw(0, width - printer_name_len, "%s", printer_name);
     mvprintw(0, 0, "> ");
     calc.printers[calc.current_printer].func(stack, head);
+    mvprintw(height - 1, 0, "RPNCAL");
+    mvprintw(height - 1, width / 2 - 5, "? for help");
+    mvprintw(height - 1, width - 6, "RPNCAL");
     refresh();
     move(0, 2);
 
+    // INPUT
     memset(buffer, 0, 80);
     int len = 0;
     int i = 0;
@@ -193,128 +206,131 @@ int main(int argc, char **argv) {
       continue;
     }
 
+    // EXECUTE
     char *_buffer = buffer;
-
     token_t token = {0};
     while ((token = token_next(&_buffer)).kind != T_NONE) {
 
-      if (token.kind == T_OP && sv_eq(token.as.sv, sv_from_cstr("include"))) {
-        token = token_next(&_buffer);
-        if (token.kind != T_OP) {
-          eprint_("include expects an argument");
-        }
+      if (token.kind == T_OP) {
+        sv_t sv = token.as.sv;
 
-        char path[90] = {0};
-        if (*token.as.sv.start == '/') {
-          snprintf(path, 90, SV_FMT ".so", SV_UNPACK(token.as.sv));
-        } else {
-          snprintf(path, 90, "./" SV_FMT ".so", SV_UNPACK(token.as.sv));
-        }
+        if (sv_eq_cstr(sv, "include")) {
+          token = token_next(&_buffer);
+          if (token.kind != T_OP) {
+            eprint_("include expects an argument");
+            continue;
+          }
 
-        int start_ops = calc.op_count;
-        int start_printers = calc.printer_count;
-        if (load_module(&calc, path)) {
+          char path[90] = {0};
+          if (*token.as.sv.start == '/') {
+            snprintf(path, 90, SV_FMT ".so", SV_UNPACK(token.as.sv));
+          } else {
+            snprintf(path, 90, "./" SV_FMT ".so", SV_UNPACK(token.as.sv));
+          }
+
+          int start_ops = calc.op_count;
+          int start_printers = calc.printer_count;
+          if (load_module(&calc, path)) {
+            move(0, 0);
+            clrtoeol();
+            printw("loaded %d operations and %d printers from module %s", calc.op_count - start_ops, calc.printer_count - start_printers, path);
+            getch();
+          }
+
+        } else if (sv_eq_cstr(sv, "exit") || sv_eq_cstr(sv, "quit")) {
+          goto close;
+
+        } else if (sv_eq_cstr(sv, "?") || sv_eq_cstr(sv, "help")) {
+          erase();
+
           move(0, 0);
-          clrtoeol();
-          printw("loaded %d operations and %d printers from module %s", calc.op_count - start_ops, calc.printer_count - start_printers, path);
-          getch();
-        }
+          printw("Operations:\n");
 
-      } else if (token.kind == T_OP && (sv_eq(token.as.sv, sv_from_cstr("exit")) || sv_eq(token.as.sv, sv_from_cstr("quit")))) {
-        goto close;
+          int maxw = 0;
+          int count = sizeof(helps) / sizeof(helps[0]);
+          for (int i = 0; i < count; ++i) {
+            printw("%s\n", helps[i][0]);
+            int w = strlen(helps[i][0]);
+            maxw = w > maxw ? w : maxw;
+          }
 
-      } else if (token.kind == T_OP && (sv_eq(token.as.sv, sv_from_cstr("?")) || sv_eq(token.as.sv, sv_from_cstr("help")))) {
-        erase();
-
-        int maxw = 0;
-        int count = sizeof(helps) / sizeof(helps[0]);
-        for (int i = 0; i < count; ++i) {
-          mvprintw(i, 0, "%s", helps[i][0]);
-          int w = strlen(helps[i][0]);
-          maxw = w > maxw ? w : maxw;
-        }
-
-        for (int i = 0; i < calc.op_count; ++i) {
-          move(count + i, 0);
-          int w = 0;
-          for (int j = 0; j < MAX_KW_COUNT && calc.operations[i].kws[j]; ++j) {
-            if (j > 0) {
-              printw(" | ");
-              w += 3;
+          for (int i = 0; i < calc.op_count; ++i) {
+            move(count + i + 1, 0);
+            int w = 0;
+            for (int j = 0; j < MAX_KW_COUNT && calc.operations[i].kws[j]; ++j) {
+              if (j > 0) {
+                printw(" | ");
+                w += 3;
+              }
+              printw("%s", calc.operations[i].kws[j]);
+              w += strlen(calc.operations[i].kws[j]);
             }
-            printw("%s", calc.operations[i].kws[j]);
-            w += strlen(calc.operations[i].kws[j]);
+            maxw = w > maxw ? w : maxw;
           }
-          maxw = w > maxw ? w : maxw;
-        }
 
-        for (int i = 0; i < count; ++i) {
-          mvprintw(i, maxw + 4, "%s", helps[i][1]);
-        }
-
-        for (int i = 0; i < calc.op_count; ++i) {
-          mvprintw(count + i, maxw + 4, "%s", calc.operations[i].description);
-        }
-
-        move(count + calc.op_count, 0);
-
-        printw("Printers:\n");
-        for (int i = 0; i < calc.printer_count; ++i) {
-          printw("%s\n", calc.printers[i].name);
-        }
-
-        refresh();
-        getch();
-      } else if (token.kind == T_OP && sv_eq(token.as.sv, sv_from_cstr("."))) {
-        if (head > 0) {
-          head--;
-        }
-      } else if (token.kind == T_OP && sv_eq(token.as.sv, sv_from_cstr(":"))) {
-        if (head > 0) {
-          stack[head] = stack[head - 1];
-          head++;
-        }
-      } else if (token.kind == T_OP) {
-
-        bool is_found = false;
-
-        int op_index = trie_search(&calc.op_trie, token.as.sv);
-        if (op_index != -1) {
-          is_found = true;
-          if (head < calc.operations[op_index].nargs) {
-            eprint("'" SV_FMT "' needs at least %d args", SV_UNPACK(token.as.sv), calc.operations[op_index].nargs);
-            goto found;
+          for (int i = 0; i < count; ++i) {
+            mvprintw(1 + i, maxw + 4, "%s", helps[i][1]);
           }
-          calc.operations[op_index].func(stack, &head);
 
-          goto found;
-        }
-        for (int i = 0; i < calc.printer_count; ++i) {
-          if (sv_eq(sv_from_cstr(calc.printers[i].name), token.as.sv)) {
+          for (int i = 0; i < calc.op_count; ++i) {
+            mvprintw(1 + count + i, maxw + 4, "%s", calc.operations[i].description);
+          }
+
+          move(count + calc.op_count + 1, 0);
+
+          printw("Printers:\n");
+          for (int i = 0; i < calc.printer_count; ++i) {
+            printw("%s\n", calc.printers[i].name);
+          }
+
+          refresh();
+          getch();
+
+        } else {
+
+          bool is_found = false;
+
+          int op_index = trie_search(&calc.op_trie, token.as.sv);
+          if (op_index != -1) {
             is_found = true;
-            calc.current_printer = i;
+            if (head < calc.operations[op_index].nargs) {
+              eprint("'" SV_FMT "' needs at least %d args", SV_UNPACK(token.as.sv), calc.operations[op_index].nargs);
+              goto found;
+            }
+            calc.operations[op_index].func(stack, &head);
+
             goto found;
           }
+          for (int i = 0; i < calc.printer_count; ++i) {
+            if (sv_eq(sv_from_cstr(calc.printers[i].name), token.as.sv)) {
+              is_found = true;
+              calc.current_printer = i;
+              goto found;
+            }
+          }
+        found:
+          if (!is_found) {
+            eprint("operation not found: '" SV_FMT "'", SV_UNPACK(token.as.sv));
+            continue;
+          }
         }
-      found:
-        if (!is_found) {
-          eprint("operation not found: '" SV_FMT "'", SV_UNPACK(token.as.sv));
-          continue;
-        }
+
       } else if (token.kind == T_NUM) {
         stack[head++] = token.as.num;
+
       } else {
         assert(0 && "unreachable");
       }
     }
   }
+
 close:
-
   endwin();
-
   for (int i = 0; i < calc.module_count; ++i) {
     dlclose(calc.modules[i]);
   }
-
+  for (int i = 0; i < 128; ++i) {
+    trie_free(calc.op_trie.children[i]);
+  }
   return 0;
 }

@@ -63,6 +63,7 @@ typedef struct {
 
 sv_t sv_from_cstr(char *s);
 bool sv_eq(sv_t a, sv_t b);
+bool sv_eq_cstr(sv_t a, char *b);
 
 int trie_search(trie_t *node, sv_t sv);
 void trie_add(trie_t *trie, sv_t key, int index);
@@ -89,6 +90,16 @@ bool sv_eq(sv_t a, sv_t b) {
     return false;
   }
   return memcmp(a.start, b.start, a.len) == 0;
+}
+
+bool sv_eq_cstr(sv_t a, char *b) {
+  int i = 0;
+  for (; i < a.len && b[i] != '\0'; ++i) {
+    if (a.start[i] != b[i]) {
+      return false;
+    }
+  }
+  return a.len == i && b[i] == '\0';
 }
 
 int trie_search(trie_t *node, sv_t key) {

@@ -1,9 +1,8 @@
 MODULES=$(patsubst %.c,%.so, $(wildcard modules/*.c))
-
-all: $(MODULES) rpncal
-.PHONY: all clean
-
 CFLAGS=-Wall -Wextra -g
+
+.PHONY: all clean
+all: $(MODULES) rpncal
 
 rpncal: rpncal.c
 	$(CC) $(CFLAGS) -o $@ $< -lncurses -lm
