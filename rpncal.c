@@ -15,6 +15,7 @@ typedef enum {
   T_NONE,
   T_OP,
   T_NUM,
+  T_REF,
 } token_kind_t;
 
 typedef struct {
@@ -22,6 +23,7 @@ typedef struct {
   union {
     double num;
     sv_t sv;
+    int i;
   } as;
 } token_t;
 
@@ -55,6 +57,11 @@ token_t token_next(char **_buffer) {
       i++;
     }
     *_buffer += i;
+
+    if (buffer[0] == '[' && buffer[i - 1] == ']') {
+      return (token_t){T_REF, {.i = atoi(buffer + 1)}};
+    }
+
     return (token_t){T_OP, {.sv = (sv_t){buffer, i}}};
   } else {
     *_buffer += endnum - buffer;
@@ -68,7 +75,7 @@ int load_module(calc_t *calc, char *module_path) {
   assert(calc->module_count + 1 < MAX_MODULES);
   void *lib = dlopen(module_path, RTLD_NOW);
   if (!lib) {
-    eprint("module not loaded: '%s': %s", module_path, dlerror());
+    eprint("%s", dlerror());
     return 0;
   }
   calc->modules[calc->module_count++] = lib;
@@ -83,7 +90,9 @@ void trie_print(trie_t *node, int offset) {
 
   for (int i = 0; i < 128; ++i) {
     if (node->children[i]) {
-      printf("%*.*s", offset, offset, "                                                                                                    ");
+      printf("%*.*s", offset, offset,
+             "                                                                 "
+             "                                   ");
       printf("%c %d\n", i, node->children[i]->index);
       trie_print(node->children[i], offset + 1);
     }
@@ -92,7 +101,8 @@ void trie_print(trie_t *node, int offset) {
 
 void default_printer(double *stack, int count) {
   for (int i = 0; i < count; ++i) {
-    mvprintw(count - i, 0, "%d: %s%E    %f\n", count - i - 1, stack[i] < 0 ? "" : " ", stack[i], stack[i]);
+    mvprintw(count - i, 0, "%d: %s%E    %f\n", count - i - 1,
+             stack[i] < 0 ? "" : " ", stack[i], stack[i]);
   }
 }
 
@@ -104,6 +114,7 @@ void print_help() {
 }
 
 int main(int argc, char **argv) {
+
   if (!isatty(1)) {
     fprintf(stderr, "ERROR: unable to run in this terminal\n");
     return 1;
@@ -145,11 +156,10 @@ int main(int argc, char **argv) {
     load_module(&calc, autoload_modules[i]);
   }
 
-  char *helps[][2] = {
-      {"include <name>", "include module"},
-      {"quit | exit", "end program"},
-      {"? | help", "print all operations"},
-  };
+  char *helps[][2] = {{"include <name>", "include module"},
+                      {"quit | exit", "end program"},
+                      {"? | help", "print all operations"},
+                      {"[<n>]", "copy the n-th number from the stack"}};
 
   int width = 0;
   int height = 0;
@@ -222,18 +232,16 @@ int main(int argc, char **argv) {
           }
 
           char path[90] = {0};
-          if (*token.as.sv.start == '/') {
-            snprintf(path, 90, SV_FMT ".so", SV_UNPACK(token.as.sv));
-          } else {
-            snprintf(path, 90, "./" SV_FMT ".so", SV_UNPACK(token.as.sv));
-          }
+          snprintf(path, 90, SV_FMT ".so", SV_UNPACK(token.as.sv));
 
           int start_ops = calc.op_count;
           int start_printers = calc.printer_count;
           if (load_module(&calc, path)) {
             move(0, 0);
             clrtoeol();
-            printw("loaded %d operations and %d printers from module %s", calc.op_count - start_ops, calc.printer_count - start_printers, path);
+            printw("loaded %d operations and %d printers from module %s",
+                   calc.op_count - start_ops,
+                   calc.printer_count - start_printers, path);
             getch();
           }
 
@@ -257,7 +265,8 @@ int main(int argc, char **argv) {
           for (int i = 0; i < calc.op_count; ++i) {
             move(count + i + 1, 0);
             int w = 0;
-            for (int j = 0; j < MAX_KW_COUNT && calc.operations[i].kws[j]; ++j) {
+            for (int j = 0; j < MAX_KW_COUNT && calc.operations[i].kws[j];
+                 ++j) {
               if (j > 0) {
                 printw(" | ");
                 w += 3;
@@ -273,7 +282,8 @@ int main(int argc, char **argv) {
           }
 
           for (int i = 0; i < calc.op_count; ++i) {
-            mvprintw(1 + count + i, maxw + 4, "%s", calc.operations[i].description);
+            mvprintw(1 + count + i, maxw + 4, "%s",
+                     calc.operations[i].description);
           }
 
           move(count + calc.op_count + 1, 0);
@@ -294,7 +304,8 @@ int main(int argc, char **argv) {
           if (op_index != -1) {
             is_found = true;
             if (head < calc.operations[op_index].nargs) {
-              eprint("'" SV_FMT "' needs at least %d args", SV_UNPACK(token.as.sv), calc.operations[op_index].nargs);
+              eprint("'" SV_FMT "' needs at least %d args",
+                     SV_UNPACK(token.as.sv), calc.operations[op_index].nargs);
               goto found;
             }
             calc.operations[op_index].func(stack, &head);
@@ -317,6 +328,13 @@ int main(int argc, char **argv) {
 
       } else if (token.kind == T_NUM) {
         stack[head++] = token.as.num;
+
+      } else if (token.kind == T_REF) {
+        if (token.as.i >= head) {
+          eprint("cannot reference stack at %d", token.as.i);
+        }
+        stack[head] = stack[head - token.as.i - 1];
+        head++;
 
       } else {
         assert(0 && "unreachable");
