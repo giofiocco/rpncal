@@ -1,3 +1,5 @@
+# MOVED TO [codeberg](https://codeberg.org/giofiocco/rpncal)
+
 # RPNcal
 
 A TUI RPN calculator extesible.
